@@ -90,6 +90,32 @@
 	cpu-supply = <&reg_dcdc2>;
 };
 
+&pio {
+	compatible = "allwinner,sun5i-a10s-pinctrl";
+
+	lcd_rgb_pins: lcd-rgb-pins {
+		pins = "PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7",
+		       "PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15",
+		       "PD16","PD17","PD18","PD19","PD20","PD21","PD22","PD23";
+		function = "lcd0";
+	};
+
+	lcd_clk_pins: lcd-clk {
+		pins = "PD24";
+		function = "lcd0";
+	};
+
+	lcd_ctrl_pins: lcd-ctrl {
+		pins = "PD25","PD26","PD27";
+		function = "lcd0";
+	};
+
+	pb02_pwm_pin: pb02-pwm {
+		pins = "PB2";
+		function = "pwm";
+	};
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -103,10 +129,10 @@
 		regulators {
 			reg_dcdc2: dcdc2 {
 				regulator-name = "dcdc2"; // core_vdd
-				regulator-fixed-microvolt = <1400000>;
-				regulator-min-microvolt = <1400000>;
+				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1400000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 			reg_dcdc3: dcdc3 {
 				regulator-name = "dcdc3";
@@ -217,28 +243,4 @@
 
 &usbphy {
 	status = "okay";
-};
-
-&pio {
-	lcd_rgb_pins: lcd-rgb-pins {
-		pins = "PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7",
-		       "PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15",
-		       "PD16","PD17","PD18","PD19","PD20","PD21","PD22","PD23";
-		function = "lcd0";
-	};
-
-	lcd_clk_pins: lcd-clk {
-		pins = "PD24";
-		function = "lcd0";
-	};
-
-	lcd_ctrl_pins: lcd-ctrl {
-		pins = "PD25","PD26","PD27";
-		function = "lcd0";
-	};
-
-	pb02_pwm_pin: pb02-pwm {
-		pins = "PB2";
-		function = "pwm0";
-	};
 };
