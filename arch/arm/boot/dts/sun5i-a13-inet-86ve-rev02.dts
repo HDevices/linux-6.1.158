@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+ OR X11
 /*
  * Copyright 2024-2025 Gemini & Community
- * DTS file for iNet 86VE rev02 - Optimized for Boot & Stability (Ported from U-Boot)
+ * DTS file for iNet 86VE rev02 - Reference Configuration
  */
 
 /dts-v1/;
@@ -31,13 +31,58 @@
 		reg = <0x40000000 0x20000000>; /* 512 MB */
 	};
 
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pwm 0 100000 0>; /* pwm_ch 0, 10kHz period, normal polarity */
-		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10>;
-		default-brightness-level = <8>;
-		power-supply = <&reg_ldo4>; /* Backlight power from PMIC */
+	lcd0: lcd-panel {
+		compatible = "simple-panel";
 		status = "okay";
+
+		vcc-supply = <&reg_ldo3>;
+		backlight-supply = <&reg_ldo4>;
+		power-supply = <&reg_ldo3>;
+
+		backlight = <&lcd_backlight>;
+
+		display-timings {
+			native-mode = <&tim0>;
+
+			tim0: resolution0 {
+				clock-frequency = <33000000>;    /* 33 MHz */
+				hactive        = <800>;
+				vactive        = <480>;
+
+				/* Use minimum 1 for sync widths (FEX had 0) */
+				hsync-len      = <1>;
+				hback-porch    = <46>;
+				hfront-porch   = <208>;  /* 1055 - 800 - 46 - 1 */
+
+				vsync-len      = <1>;
+				vback-porch    = <23>;
+				vfront-porch   = <546>;  /* 1050 - 480 - 23 - 1 */
+
+				/* polarities: adjust if needed */
+				hsync-active   = <0>;
+				vsync-active   = <0>;
+				de-active      = <1>;
+				pixelclk-active= <0>;
+			};
+		};
+	};
+    
+	lcd_backlight: backlight {
+		compatible = "pwm-backlight";
+		/* &pwm phandle, channel 0, period 100000 ns (10kHz), flags=0 (normal/high) */
+		pwms = <&pwm 0 100000 0>;
+		brightness-levels = <0 10 30 60 120 255>;
+		default-brightness = <5>;
+		power-supply = <&reg_ldo4>;
+		status = "okay";
+	};
+};
+
+&lcd0 {
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&tcon0_out_rgb>;
+		};
 	};
 };
 
@@ -58,12 +103,14 @@
 		regulators {
 			reg_dcdc2: dcdc2 {
 				regulator-name = "dcdc2"; // core_vdd
-				regulator-min-microvolt = <1000000>;
+				regulator-fixed-microvolt = <1400000>;
+				regulator-min-microvolt = <1400000>;
 				regulator-max-microvolt = <1400000>;
 				regulator-boot-on;
 			};
 			reg_dcdc3: dcdc3 {
 				regulator-name = "dcdc3";
+				regulator-fixed-microvolt = <1200000>;
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-boot-on;
@@ -75,18 +122,21 @@
 			};
 			reg_ldo2: ldo2 {
 				regulator-name = "ldo2";
+				regulator-fixed-microvolt = <3000000>;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 			};
 			reg_ldo3: ldo3 {
 				regulator-name = "ldo3";
+				regulator-fixed-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
 			};
 			reg_ldo4: ldo4 {
 				regulator-name = "ldo4";
+				regulator-fixed-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -110,51 +160,44 @@
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <480>;
 	};
+
+	/* RTC: PCF8563 (from board script.txt: rtc_twi_addr = 81 decimal = 0x51) */
+	rtc: pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
 };
 
 &tcon0 { 
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_tcon0_pins>; 
+	pinctrl-0 = <&lcd_rgb_pins &lcd_clk_pins &lcd_ctrl_pins>;
 
-	panel: panel {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		power-supply = <&reg_ldo2>; /* LCD power from PMIC */
-		height-mm = <90>; 
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <33000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hfront-porch = <208>;
-				hback-porch = <46>;
-				hsync-len = <1>;
-				vfront-porch = <546>;
-				vback-porch = <23>;
-				vsync-len = <1>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
+		tcon0_out: port@1 {
+			reg = <1>;
+			tcon0_out_rgb: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
 };
 
 &pwm {
-	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_pwm_pins>;
+	pinctrl-0 = <&pb02_pwm_pin>;
+	status = "okay";
 	clocks = <&osc24M>;
 };
 
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
-	vmmc-supply = <&reg_ldo3>; /* PMIC regulator restored */
+	vmmc-supply = <&reg_ldo3>;
 	bus-width = <4>;
 	broken-cd;
 	disable-wp;
@@ -177,16 +220,25 @@
 };
 
 &pio {
-	lcd_pwm_pins: lcd-pwm-pins {
-		pins = "PB2";
-		function = "pwm0"; 
+	lcd_rgb_pins: lcd-rgb-pins {
+		pins = "PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7",
+		       "PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15",
+		       "PD16","PD17","PD18","PD19","PD20","PD21","PD22","PD23";
+		function = "lcd0";
 	};
 
-	lcd_tcon0_pins: lcd-tcon0-pins {
-		pins = "PD0", "PD1", "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
-		       "PD8", "PD9", "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
-		       "PD16", "PD17", "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
-		       "PD24", "PD25", "PD26", "PD27";
-		function = "lcd0"; 
+	lcd_clk_pins: lcd-clk {
+		pins = "PD24";
+		function = "lcd0";
+	};
+
+	lcd_ctrl_pins: lcd-ctrl {
+		pins = "PD25","PD26","PD27";
+		function = "lcd0";
+	};
+
+	pb02_pwm_pin: pb02-pwm {
+		pins = "PB2";
+		function = "pwm0";
 	};
 };
